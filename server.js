@@ -138,9 +138,9 @@ let bookingCounter = 1000;
 app.post('/api/bookings', (req, res) => {
   const body = req.body;
   if (!body || !body.bookingType) return res.status(400).json({ error: 'bookingType is required.' });
-  const booking = { id: `BK${++bookingCounter}`, createdAt: new Date().toISOString(), status: 'confirmed', ...body };
+  const booking = { id: BK${++bookingCounter}, createdAt: new Date().toISOString(), status: 'confirmed', ...body };
   bookings.push(booking);
-  res.status(201).json({ success: true, booking, message: booking.bookingType === 'doctor' ? `Appointment with ${body.doctorName || 'doctor'} confirmed.` : `Symptom-based consultation booking confirmed.` });
+  res.status(201).json({ success: true, booking, message: booking.bookingType === 'doctor' ? Appointment with ${body.doctorName || 'doctor'} confirmed. : Symptom-based consultation booking confirmed. });
 });
 
 app.get('/api/bookings', (req, res) => {
