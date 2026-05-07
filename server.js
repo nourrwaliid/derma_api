@@ -154,6 +154,13 @@ app.get('/api/health', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
 });
+app.get('/api/test-key', (req, res) => {
+  const key = process.env.GEMINI_API_KEY || 'NOT SET';
+  res.json({ 
+    keySet: !!process.env.GEMINI_API_KEY,
+    keyPreview: key.substring(0, 10) + '...' + key.substring(key.length - 4)
+  });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
