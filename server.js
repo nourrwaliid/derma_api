@@ -151,9 +151,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', diseases: DISEASES.length, uptime: process.uptime() });
 });
 
-app.use((req, res) => {
-  res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
-});
 app.get('/api/test-key', (req, res) => {
   const key = process.env.GEMINI_API_KEY || 'NOT SET';
   res.json({ 
@@ -162,9 +159,13 @@ app.get('/api/test-key', (req, res) => {
   });
 });
 
+app.use((req, res) => {
+  res.status(404).json({ error: Route ${req.method} ${req.path} not found. });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`\n🩺  DermaGuide API running on http://localhost:${PORT}`);
-  console.log(`📋  ${DISEASES.length} dermatology conditions loaded`);
-  console.log(`🔬  ${ALL_SYMPTOMS.length} unique symptoms indexed\n`);
+  console.log(\n🩺  DermaGuide API running on http://localhost:${PORT});
+  console.log(📋  ${DISEASES.length} dermatology conditions loaded);
+  console.log(🔬  ${ALL_SYMPTOMS.length} unique symptoms indexed\n);
 });
