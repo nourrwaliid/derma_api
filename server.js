@@ -13,7 +13,7 @@ const ALL_SYMPTOMS = [...new Set(DISEASES.flatMap(d => d.symptoms))].sort();
 function scoreMatch(disease, userSymptoms) {
   const matched = userSymptoms.filter(s => disease.symptoms.includes(s));
   if (matched.length === 0) return null;
-  const matchRatio   = matched.length / userSymptoms.length;
+  const matchRatio = matched.length / userSymptoms.length;
   const diseaseRatio = matched.length / disease.symptoms.length;
   const score = (matchRatio * 0.6) + (diseaseRatio * 0.4);
   return { matchedSymptoms: matched, totalMatched: matched.length, matchPercentage: Math.round(score * 100), score };
@@ -87,8 +87,9 @@ app.post('/api/scan', async (req, res) => {
       if (image.includes('image/png')) mimeType = 'image/png';
     }
 
+    // Using 1.5-flash for better stability and quota management
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,21 +97,20 @@ app.post('/api/scan', async (req, res) => {
           contents: [{
             parts: [
               { inline_data: { mime_type: mimeType, data: base64Image } },
-              { text: `You are a dermatology AI assistant for an educational app. Analyze this skin image and respond ONLY with valid JSON, no markdown, no extra text:
-{
-  "label": "condition_id",
-  "display_name": "Condition Name",
-  "confidence": 0.85,
-  "urgency": "low",
-  "description": "A clear 2-3 sentence description of what you observe.",
-  "recommendations": ["Rec 1", "Rec 2", "Rec 3", "Rec 4"],
-  "predictions": [
-    {"label": "Most likely condition", "confidence": 0.85},
-    {"label": "Second possibility", "confidence": 0.10},
-    {"label": "Third possibility", "confidence": 0.05}
-  ]
-}
-Rules: urgency must be low/medium/high. confidence is 0.0-1.0. predictions must have exactly 3 items summing to ~1.0. Prioritize HAM10000 classes when applicable: melanocytic_nevi, melanoma, benign_keratosis, basal_cell_carcinoma, actinic_keratosis, vascular_lesions, dermatofibroma. Also identify other common conditions like eczema, psoriasis, acne, rosacea. If unclear use label unclear_image. Be educational and non-alarmist.` }
+              { text: `You are a dermatology AI assistant. Analyze this skin image and respond ONLY with valid JSON.
+              {
+                "label": "condition_id",
+                "display_name": "Condition Name",
+                "confidence": 0.85,
+                "urgency": "low",
+                "description": "2-3 sentence description.",
+                "recommendations": ["Rec 1", "Rec 2"],
+                "predictions": [
+                  {"label": "Condition 1", "confidence": 0.85},
+                  {"label": "Condition 2", "confidence": 0.10},
+                  {"label": "Condition 3", "confidence": 0.05}
+                ]
+              }` }
             ]
           }],
           generationConfig: { temperature: 0.1 }
@@ -122,9 +122,15 @@ Rules: urgency must be low/medium/high. confidence is 0.0-1.0. predictions must 
     if (!geminiRes.ok) return res.status(500).json({ error: 'AI service error', details: geminiData });
 
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(clean);
-    res.json(result);
+    
+    try {
+      const clean = text.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(clean);
+      res.json(result);
+    } catch (parseErr) {
+      console.error('JSON Parse Error:', text);
+      res.status(500).json({ error: 'Invalid AI response format', raw: text });
+    }
 
   } catch (err) {
     console.error('Scan error:', err.message);
@@ -138,9 +144,17 @@ let bookingCounter = 1000;
 app.post('/api/bookings', (req, res) => {
   const body = req.body;
   if (!body || !body.bookingType) return res.status(400).json({ error: 'bookingType is required.' });
-  const booking = { id: BK${++bookingCounter}, createdAt: new Date().toISOString(), status: 'confirmed', ...body };
+  
+  // FIXED: Added backticks for template literals
+  const booking = { id: `BK${++bookingCounter}`, createdAt: new Date().toISOString(), status: 'confirmed', ...body };
   bookings.push(booking);
-  res.status(201).json({ success: true, booking, message: booking.bookingType === 'doctor' ? Appointment with ${body.doctorName || 'doctor'} confirmed. : Symptom-based consultation booking confirmed. });
+  
+  // FIXED: Added backticks for template literals
+  const msg = booking.bookingType === 'doctor' 
+    ? `Appointment with ${body.doctorName || 'doctor'} confirmed.` 
+    : `Symptom-based consultation booking confirmed.`;
+    
+  res.status(201).json({ success: true, booking, message: msg });
 });
 
 app.get('/api/bookings', (req, res) => {
@@ -155,17 +169,18 @@ app.get('/api/test-key', (req, res) => {
   const key = process.env.GEMINI_API_KEY || 'NOT SET';
   res.json({ 
     keySet: !!process.env.GEMINI_API_KEY,
-    keyPreview: key.substring(0, 10) + '...' + key.substring(key.length - 4)
+    keyPreview: key.length > 10 ? key.substring(0, 10) + '...' + key.substring(key.length - 4) : 'TOO SHORT'
   });
 });
 
 app.use((req, res) => {
-  res.status(404).json({ error: Route ${req.method} ${req.path} not found. });
+  // FIXED: Added backticks for template literals
+  res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(\n🩺  DermaGuide API running on http://localhost:${PORT});
-  console.log(📋  ${DISEASES.length} dermatology conditions loaded);
-  console.log(🔬  ${ALL_SYMPTOMS.length} unique symptoms indexed\n);
+  console.log(`\n🩺  DermaGuide API running on http://localhost:${PORT}`);
+  console.log(`📋  ${DISEASES.length} dermatology conditions loaded`);
+  console.log(`🔬  ${ALL_SYMPTOMS.length} unique symptoms indexed\n`);
 });
